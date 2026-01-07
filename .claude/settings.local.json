@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/check_env.py:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(NO_PROXY=*)",
+      "Bash(pkill:*)",
+      "Bash(unset:*)"
+    ]
+  }
+}
