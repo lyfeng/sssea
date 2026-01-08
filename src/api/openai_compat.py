@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
-from ..simulation.models import SimulationRequest, SimulationResult
 from ..attestation.mock_quote import generate_attestation_metadata
 from ..config import get_settings
 

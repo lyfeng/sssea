@@ -209,56 +209,53 @@ async def chat_completions(request: ChatCompletionRequest):
 @app.post("/api/v1/simulate")
 async def simulate_transaction(request: Request):
     """
-    直接模拟端点（非 OpenAI 兼容）
+    直接模拟端点（基于 ROMA Pipeline）
 
-    更简单的 API，用于直接调用模拟功能。
+    简化的 REST API，直接调用 ROMA Pipeline 进行安全审计。
+
+    ## 请求示例
+    ```json
+    {
+      "user_intent": "Swap 1 ETH to USDC",
+      "chain_id": 1,
+      "tx_from": "0x...",
+      "tx_to": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+      "tx_value": "1000000000000000000",
+      "tx_data": "0x..."
+    }
+    ```
     """
-    import json
-
     try:
         data = await request.json()
 
-        # 构建模拟请求
-        from .simulation.models import SimulationRequest
-        sim_request = SimulationRequest(
-            user_intent=data.get("user_intent", ""),
-            chain_id=data.get("chain_id", 1),
-            tx_from=data["tx_from"],
-            tx_to=data["tx_to"],
-            tx_value=data.get("tx_value", "0"),
-            tx_data=data.get("tx_data", "0x"),
-        )
-
-        # 执行模拟
+        # 获取 ROMA Pipeline
         handler: SSSEAHandler = app.state.handler
-        sim_result = await handler._run_simulation(sim_request)
-        analysis = await handler.analyzer.analyze(sim_request, sim_result)
+        pipeline = handler._roma_pipeline
 
-        # 生成证明
-        from .attestation.mock_quote import generate_attestation_metadata
-        attestation = generate_attestation_metadata(
-            simulation_result={
-                "risk_level": analysis.risk_level.value,
-                "confidence": analysis.confidence,
-            },
-            model_name="sssea-v1",
+        # 构建交易数据
+        tx_data = {
+            "chain_id": data.get("chain_id", 1),
+            "tx_from": data["tx_from"],
+            "tx_to": data["tx_to"],
+            "tx_value": data.get("tx_value", "0"),
+            "tx_data": data.get("tx_data", "0x"),
+        }
+
+        # 运行 ROMA Pipeline
+        result = await pipeline.run(
+            user_intent=data.get("user_intent", ""),
+            tx_data=tx_data,
         )
 
+        # 返回结果
         return {
-            "verdict": analysis.risk_level.value,
-            "confidence": analysis.confidence,
-            "summary": analysis.summary,
-            "analysis": analysis.analysis,
-            "anomalies": analysis.anomalies,
-            "recommendations": analysis.recommendations,
-            "asset_changes": [
-                {
-                    "token": c.token_symbol,
-                    "amount": c.change_amount,
-                }
-                for c in sim_result.asset_changes
-            ],
-            "attestation": attestation["oml_attestation"],
+            "verdict": result.get("verdict", {}).get("risk_level", "UNKNOWN"),
+            "confidence": result.get("verdict", {}).get("confidence", 0.7),
+            "summary": result.get("summary", ""),
+            "findings": result.get("findings", []),
+            "recommendations": result.get("recommendations", []),
+            "execution_steps": result.get("execution_details", {}).get("steps", []),
+            "attestation": result.get("metadata", {}).get("oml_attestation"),
         }
 
     except Exception as e:
