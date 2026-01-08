@@ -57,7 +57,7 @@
 
 
 2. **意图对齐推理 (Reasoning)：**
-* **技术：** **DSPy + ROMA 推理框架**。
+* **技术：** **DSPy + 推理框架**。
 * **动作：** LLM 对比用户说的“换 USDC”和模拟结果得到的资产变动。
 * **逻辑校验：** 检查得到的 USDC 数量是否符合报价减去 0.5% 滑点的数学逻辑：
 
@@ -173,7 +173,7 @@ sequenceDiagram
 
 | 模块名称 | 技术实现 | 功能描述 |
 | --- | --- | --- |
-| **Intent Parser** | ROMA Framework + LLM | 将自然语言解析为**结构化意图** (Expected State)。 |
+| **Intent Parser** | SSSEA 感知-模拟-推理-证明 Framework + LLM | 将自然语言解析为**结构化意图** (Expected State)。 |
 | **Sandbox Engine** | Foundry Anvil + TEE | 建立“平行宇宙”，获取**物理执行结果** (Actual State)。 |
 | **Alignment Brain** | DSPy Logic | **对比逻辑：** 验证 (Actual - Expected) 是否在允许误差内。 |
 | **Attestor** | OML 1.0 SDK | 在硬件层面为上述所有过程背书，输出 **Security Proof**。 |

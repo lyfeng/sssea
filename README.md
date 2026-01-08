@@ -87,7 +87,7 @@ sssea/
 │   │   ├── models.py       # 数据模型
 │   │   └── anvil_screener.py  # Anvil 模拟引擎
 │   ├── reasoning/          # 推理层 (LLM Brain)
-│   │   ├── prompts.py      # ROMA Prompt 模板
+│   │   ├── prompts.py      # SSSEA Prompt 模板
 │   │   └── intent_analyzer.py  # 意图分析器
 │   ├── attestation/        # OML 证明层
 │   │   └── mock_quote.py   # Mock 证明生成器

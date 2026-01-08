@@ -32,7 +32,7 @@
 
 不同于传统 API，SSSEA 运行一个 **感知-推理-动作 (Perception-Reasoning-Action)** 的闭环。
 
-### 2.1 递归推理工作流 (ROMA Workflow)
+### 2.1 递归推理工作流 (SSSEA Workflow)
 
 1. **感知 (Perception)：** 接收用户自然语言意图及交易 Data。
 2. **分解 (Planning)：** Agent 将任务拆解为：(a) 意图语义分析；(b) 环境分叉准备；(c) 模拟执行；(d) 风险溯源。

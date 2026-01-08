@@ -21,7 +21,7 @@ SSSEA 采用了 **Reasoning-Simulation-Attestation** 三位一体的智能体架
 ### 2.1 架构组件
 
 * **Perception Layer (感知层)**：兼容 OpenAI API 标准，通过接口获取用户的 `Intent` (意图) 和 `Transaction Data`。
-* **Reasoning Layer (推理层 - LLM Brain)**：基于 Sentient ROMA 框架，利用 LLM 对合约逻辑进行语义分析，将其与用户意图进行比对。
+* **Reasoning Layer (推理层 - LLM Brain)**：基于 Sentient SSSEA 框架，利用 LLM 对合约逻辑进行语义分析，将其与用户意图进行比对。
 * **Execution Sandbox (执行沙盒 - TEE)**：在 AWS Nitro Enclaves 中运行的 Anvil 节点，负责物理隔离的模拟执行。
 * **Protocol Layer (协议层)**：集成 OML 1.0，负责生成硬件级的 `Attestation Report` 并处理基于感知价值的支付结算。
 
@@ -136,6 +136,6 @@ SSSEA 完美践行了 **Security-as-a-Service**。通过 OML 协议：
 
 1. **Enclave Deployment**: 将目前的容器化 Anvil 镜像打包为符合 AWS Nitro Enclaves 规范的 `.eif` 文件。
 2. **OML Registration**: 在 Sentient Spark 阶段注册 Agent 哈希，并配置收益分配逻辑。
-3. **ROMA Integration**: 编写针对 Web3 漏洞库的 `Reasoning Prompt` 模板，提升 Agent 对复杂 DeFi 攻击的语义识别率。
+3. **SSSEA Integration**: 编写针对 Web3 漏洞库的 `Reasoning Prompt` 模板，提升 Agent 对复杂 DeFi 攻击的语义识别率。
 
 ---

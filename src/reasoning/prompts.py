@@ -1,7 +1,7 @@
 """
-ROMA Prompt Templates for SSSEA Agent
+SSSEA Prompt Templates for SSSEA Agent
 
-基于 Sentient ROMA 框架设计的 Prompt 模板，用于意图对齐审计。
+基于 Sentient SSSEA 框架设计的 Prompt 模板，用于意图对齐审计。
 """
 
 from typing import Dict, Any, List
@@ -9,7 +9,7 @@ from string import Template
 
 
 class PromptTemplates:
-    """ROMA Prompt 模板集合"""
+    """SSSEA Prompt 模板集合"""
 
     # 系统提示词 - 定义 SSSEA Agent 的角色和职责
     SYSTEM_PROMPT = """你是 SSSEA (Sentient Security Sandbox Execution Agent)，一个专门用于 Web3 交易安全审计的 AI Agent。
