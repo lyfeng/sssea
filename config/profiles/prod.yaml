@@ -1,0 +1,172 @@
+# SSSEA ROMA Configuration - Production Profile
+# 生产环境配置
+
+# ============================================================================
+# Pipeline Configuration
+# ============================================================================
+pipeline:
+  # 启用的Agent
+  enabled_agents:
+    - perception
+    - planner
+    - executor
+    - reflection
+    - aggregator
+
+  # 完整流程
+  skip_planner: false
+
+  # 最大重试次数
+  max_retries: 3
+
+  # 超时设置（秒）
+  timeout: 600
+
+# ============================================================================
+# Agent Configuration
+# ============================================================================
+agents:
+  perception:
+    enabled: true
+    confidence_threshold: 0.9
+
+  planner:
+    enabled: true
+    max_subtasks: 20
+    parallel_execution: true
+
+  executor:
+    enabled: true
+    parallel_execution: true
+    continue_on_error: false
+
+  reflection:
+    enabled: true
+    max_retries: 3
+    auto_retry: true
+
+  aggregator:
+    enabled: true
+
+# ============================================================================
+# Toolkit Configuration
+# ============================================================================
+toolkits:
+  # Anvil EVM Simulator
+  anvil_simulator:
+    enabled: true
+    backend: "docker"
+    fork_url: "${MAINNET_RPC_URL}"
+    fork_block: null
+    anvil_path: "/usr/local/bin/anvil"
+    base_port: 8545
+    timeout: 60
+    pool_size: 5
+
+  # TEE Manager
+  tee_manager:
+    enabled: true
+    backend: "nitro"  # AWS Nitro Enclaves
+    memory: 2048
+    cpus: 4
+    attestation_enabled: true
+    nitro_cli_path: "nitro-cli"
+
+  # Forensics Analyzer
+  forensics_analyzer:
+    enabled: true
+    max_trace_depth: 100
+    enable_ml_detection: true
+
+# ============================================================================
+# LLM Configuration
+# ============================================================================
+llm:
+  provider: "openrouter"
+  model: "openai/gpt-4o"
+  api_key: "${ROMA_API_KEY}"
+  base_url: "https://openrouter.ai/api/v1"
+  temperature: 0.1
+  max_tokens: 4000
+  timeout: 60
+
+# ============================================================================
+# ROMA Configuration
+# ============================================================================
+roma:
+  enabled: true
+  provider: "openrouter"
+  model: "openai/gpt-4o"
+  api_key: "${ROMA_API_KEY}"
+
+  # ROMA组件
+  components:
+    atomizer:
+      enabled: true
+      complexity_threshold: "low"
+    executor:
+      enabled: true
+      prediction_strategy: "chain_of_thought"
+    verifier:
+      enabled: true
+      verification_mode: "strict"
+
+# ============================================================================
+# Simulation Configuration
+# ============================================================================
+simulation:
+  gas_limit: 30000000
+  gas_price: "auto"
+
+  state_override:
+    enabled: true
+    strategies:
+      - increase_balance
+      - modify_timestamp
+      - adjust_gas_limit
+      - modify_token_approvals
+
+  snapshot_mode: "revert"
+
+# ============================================================================
+# Logging & Observability
+# ============================================================================
+logging:
+  level: "INFO"
+  format: "json"
+  include_timestamps: true
+
+  # MLflow集成
+  mlflow:
+    enabled: true
+    tracking_uri: "${MLFLOW_TRACKING_URI}"
+    experiment_name: "SSSEA_production"
+    auto_log: true
+
+# ============================================================================
+# Security
+# ============================================================================
+security:
+  allowed_callers:
+    - "verified_agents"
+
+  max_tx_size_bytes: 131072
+
+  sensitive_operations:
+    - unlimited_approval
+    - ownership_transfer
+    - large_withdrawal
+    - delegatecall_unknown
+
+# ============================================================================
+# Production Options
+# ============================================================================
+production:
+  mock_mode: false
+  skip_anvil: false
+  skip_tee: false
+  verbose: false
+
+  # 资源限制
+  max_concurrent_requests: 10
+  max_queue_size: 100

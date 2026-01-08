@@ -2,6 +2,7 @@
 OpenAI Chat Completion Compatible API
 
 实现符合 OpenAI API 标准的接口，使 SSSEA 能被其他 Agent 通过标准 SDK 调用。
+支持ROMA Pipeline进行完整的递归推理分析。
 """
 
 import json
@@ -15,7 +16,6 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
 from ..simulation.models import SimulationRequest, SimulationResult
-from ..simulation.anvil_screener import AnvilScreener
 from ..reasoning import (
     MockIntentAnalyzer,
     IntentAnalyzer,
@@ -120,6 +120,7 @@ SIMULATE_TX_TOOL = {
         "description": (
             "在 TEE 隔离沙盒中模拟 Web3 交易执行，并进行意图对齐审计。"
             "返回详细的资产变动、风险评级和 OML 证明。"
+            "基于ROMA框架进行递归推理分析。"
         ),
         "parameters": {
             "type": "object",
@@ -167,35 +168,48 @@ class SSSEAHandler:
     SSSEA API 处理器
 
     处理 OpenAI 兼容的 Chat Completion 请求。
+    支持通过ROMA Pipeline进行完整的递归推理分析。
     """
 
     def __init__(self, settings: Optional[Any] = None):
         self.settings = settings or get_settings()
         self.analyzer = self._create_analyzer()
-        self._screener: Optional[AnvilScreener] = None
+        self._roma_pipeline = None
+        self._screener = None
 
     def _create_analyzer(self) -> Any:
         """
         根据配置创建推理分析器
 
         支持的推理引擎：
-        - "roma": 使用 ROMA 递归推理框架
+        - "roma_pipeline": 使用完整的ROMA Pipeline（推荐）
+        - "roma": 使用 ROMA 递归推理框架（旧版）
         - "openai": 直接使用 OpenAI API
         - "mock": 使用 Mock 分析器（测试用）
         """
         engine = self.settings.reasoning_engine.lower()
 
-        if engine == "roma":
-            # 尝试使用 ROMA
+        # 优先使用ROMA Pipeline
+        if engine in ("roma", "roma_pipeline"):
             api_key = self.settings.roma_api_key or self.settings.openai_api_key
             if api_key:
-                logger.info("Using ROMAIntentAnalyzer")
-                return ROMAIntentAnalyzer(
-                    api_key=api_key,
-                    base_url=self.settings.openai_base_url,
-                    model=self.settings.roma_model,
-                    provider=self.settings.roma_provider,
-                )
+                logger.info("Using ROMA Pipeline for analysis")
+                # 尝试初始化ROMA Pipeline
+                try:
+                    from ..agents import SSSEAPipeline
+                    from ..config.roma_config import load_profile
+
+                    config = load_profile("dev" if self.settings.api_reload else "prod")
+                    self._roma_pipeline = SSSEAPipeline(config)
+                    return None  # 使用Pipeline替代analyzer
+                except ImportError as e:
+                    logger.warning(f"ROMA Pipeline不可用: {e}, 回退到ROMAIntentAnalyzer")
+                    return ROMAIntentAnalyzer(
+                        api_key=api_key,
+                        base_url=self.settings.openai_base_url,
+                        model=self.settings.roma_model,
+                        provider=self.settings.roma_provider,
+                    )
             else:
                 logger.warning("ROMA API key not configured, using MockROMAAnalyzer")
                 return MockROMAAnalyzer()
@@ -247,15 +261,140 @@ class SSSEAHandler:
         """
         处理模拟请求
 
-        1. 解析用户消息中的意图和交易数据
-        2. 调用 AnvilScreener 执行模拟
-        3. 调用 IntentAnalyzer 进行意图审计
-        4. 返回带 OML 证明的响应
+        根据配置选择执行路径：
+        1. ROMA Pipeline: 完整的递归推理分析
+        2. ROMA Intent Analyzer: 使用ROMA框架的分析
+        3. 传统分析: 直接调用模拟+分析
         """
         # 1. 提取意图和交易数据
         intent, tx_params = self._extract_transaction_params(request)
 
-        # 2. 构建模拟请求
+        # 2. 如果有ROMA Pipeline，使用Pipeline
+        if self._roma_pipeline:
+            return await self._handle_with_pipeline(request, intent, tx_params)
+
+        # 3. 否则使用传统分析流程
+        return await self._handle_with_analyzer(request, intent, tx_params)
+
+    async def _handle_with_pipeline(
+        self,
+        request: ChatCompletionRequest,
+        intent: str,
+        tx_params: Dict[str, Any],
+    ) -> ChatCompletionResponse:
+        """使用ROMA Pipeline处理请求"""
+        try:
+            # 运行ROMA Pipeline
+            result = await self._roma_pipeline.run(
+                user_intent=intent,
+                tx_data=tx_params,
+            )
+
+            # 构建响应
+            return self._build_pipeline_response(request, intent, tx_params, result)
+
+        except Exception as e:
+            logger.error(f"ROMA Pipeline执行失败: {e}", exc_info=True)
+            # 回退到传统分析
+            return await self._handle_with_analyzer(request, intent, tx_params)
+
+    def _build_pipeline_response(
+        self,
+        request: ChatCompletionRequest,
+        intent: str,
+        tx_params: Dict[str, Any],
+        result: Dict[str, Any],
+    ) -> ChatCompletionResponse:
+        """构建Pipeline响应"""
+        verdict = result.get("verdict", {})
+        tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
+
+        # 格式化响应消息
+        content = self._format_pipeline_message(result)
+
+        # 生成证明
+        attestation = generate_attestation_metadata(
+            simulation_result={
+                "risk_level": verdict.get("risk_level", "UNKNOWN"),
+                "confidence": verdict.get("confidence", 0.7),
+            },
+            model_name=request.model,
+        )
+
+        return ChatCompletionResponse(
+            id=f"chatcmpl-{uuid.uuid4().hex[:28]}",
+            created=int(time.time()),
+            model=request.model,
+            choices=[{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": content,
+                    "tool_calls": [{
+                        "id": tool_call_id,
+                        "type": "function",
+                        "function": {
+                            "name": "simulate_tx",
+                            "arguments": json.dumps(tx_params),
+                        },
+                    }],
+                },
+                "finish_reason": "tool_calls",
+            }],
+            usage=Usage(
+                prompt_tokens=100,
+                completion_tokens=len(content) // 4,
+                total_tokens=100 + len(content) // 4,
+            ),
+            system_fingerprint=attestation["system_fingerprint"],
+            metadata={
+                "oml_attestation": attestation["oml_attestation"],
+                "risk_level": verdict.get("risk_level", "UNKNOWN"),
+                "risk_score": int(verdict.get("confidence", 0.7) * 100),
+                "pipeline_used": True,
+                "execution_steps": result.get("execution_details", {}).get("steps", []),
+            },
+        )
+
+    def _format_pipeline_message(self, result: Dict[str, Any]) -> str:
+        """格式化Pipeline结果消息"""
+        verdict = result.get("verdict", {})
+        risk_level = verdict.get("risk_level", "UNKNOWN")
+
+        risk_emoji = {
+            "SAFE": "✅",
+            "WARNING": "⚠️",
+            "CRITICAL": "🚨",
+        }
+
+        emoji = risk_emoji.get(risk_level, "")
+        lines = [
+            f"{emoji} **安全审计结果**: {risk_level}",
+            f"**置信度**: {verdict.get('confidence', 0.7):.0%}",
+            "",
+            f"**摘要**: {result.get('summary', '')}",
+        ]
+
+        findings = result.get("findings", [])
+        if findings:
+            lines.extend(["", **检测到的问题**:])
+            lines.extend(f"- {f}" for f in findings)
+
+        recommendations = result.get("recommendations", [])
+        if recommendations:
+            lines.extend(["", **建议**:])
+            lines.extend(f"- {r}" for r in recommendations[:5])
+
+        return "\n".join(lines)
+
+    async def _handle_with_analyzer(
+        self,
+        request: ChatCompletionRequest,
+        intent: str,
+        tx_params: Dict[str, Any],
+    ) -> ChatCompletionResponse:
+        """使用传统Analyzer处理请求"""
+        # 构建模拟请求
         sim_request = SimulationRequest(
             user_intent=intent,
             chain_id=tx_params.get("chain_id", 1),
@@ -265,13 +404,13 @@ class SSSEAHandler:
             tx_data=tx_params.get("tx_data", "0x"),
         )
 
-        # 3. 执行模拟（MVP 阶段使用 Mock 结果）
+        # 执行模拟
         sim_result = await self._run_simulation(sim_request)
 
-        # 4. 意图分析
+        # 意图分析
         analysis = await self.analyzer.analyze(sim_request, sim_result)
 
-        # 5. 生成 OML 证明
+        # 生成证明
         attestation = generate_attestation_metadata(
             simulation_result={
                 "risk_level": analysis.risk_level.value,
@@ -281,26 +420,9 @@ class SSSEAHandler:
             model_name=request.model,
         )
 
-        # 6. 构建 Tool Call 响应
         tool_call_id = f"call_{uuid.uuid4().hex[:24]}"
-        result_data = {
-            "verdict": analysis.risk_level.value,
-            "confidence": analysis.confidence,
-            "summary": analysis.summary,
-            "analysis": analysis.analysis,
-            "asset_changes": [
-                {
-                    "token": c.token_symbol,
-                    "amount": c.change_amount,
-                }
-                for c in sim_result.asset_changes
-            ],
-            "anomalies": analysis.anomalies,
-            "recommendations": analysis.recommendations,
-            "gas_used": sim_result.gas_used,
-        }
 
-        response = ChatCompletionResponse(
+        return ChatCompletionResponse(
             id=f"chatcmpl-{uuid.uuid4().hex[:28]}",
             created=int(time.time()),
             model=request.model,
@@ -321,7 +443,7 @@ class SSSEAHandler:
                 "finish_reason": "tool_calls",
             }],
             usage=Usage(
-                prompt_tokens=100,  # Mock
+                prompt_tokens=100,
                 completion_tokens=len(analysis.analysis) // 4,
                 total_tokens=100 + len(analysis.analysis) // 4,
             ),
@@ -330,14 +452,13 @@ class SSSEAHandler:
                 "oml_attestation": attestation["oml_attestation"],
                 "risk_level": analysis.risk_level.value,
                 "risk_score": int(analysis.confidence * 100),
+                "pipeline_used": False,
                 "asset_impact": {
                     c.token_symbol: c.change_amount
                     for c in sim_result.asset_changes
                 },
             },
         )
-
-        return response
 
     async def _handle_chat(
         self,
@@ -355,7 +476,7 @@ class SSSEAHandler:
                 "message": {
                     "role": "assistant",
                     "content": (
-                        "我是 SSSEA 安全审计 Agent。"
+                        "我是 SSSEA 安全审计 Agent，基于 ROMA 框架进行递归推理分析。"
                         "请使用 simulate_tx 工具来审计 Web3 交易。"
                     ),
                 },
@@ -363,10 +484,10 @@ class SSSEAHandler:
             }],
             usage=Usage(
                 prompt_tokens=10,
-                completion_tokens=20,
-                total_tokens=30,
+                completion_tokens=25,
+                total_tokens=35,
             ),
-            system_fingerprint=f"sssea@mock_{uuid.uuid4().hex[:8]}",
+            system_fingerprint=f"sssea-roma@{uuid.uuid4().hex[:8]}",
         )
 
         return response
@@ -417,9 +538,8 @@ class SSSEAHandler:
         运行交易模拟
 
         MVP 阶段：返回 Mock 结果
-        生产环境：使用真实的 AnvilScreener
+        生产环境：使用真实的 AnvilScreener 或 ROMA Pipeline
         """
-        # MVP 阶段返回 Mock 结果
         return SimulationResult(
             chain_id=request.chain_id,
             block_number=19_000_000,
@@ -429,10 +549,7 @@ class SSSEAHandler:
             tx_data=request.tx_data,
             success=True,
             gas_used=150_000,
-            asset_changes=[
-                # Mock: 假设是一个成功的 swap
-                # 实际环境会从 Anvil 获取真实数据
-            ],
+            asset_changes=[],
         )
 
     def _format_response_message(

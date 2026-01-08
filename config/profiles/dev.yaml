@@ -1,0 +1,175 @@
+# SSSEA ROMA Configuration - Development Profile
+# 开发环境配置
+
+# ============================================================================
+# Pipeline Configuration
+# ============================================================================
+pipeline:
+  # 启用的Agent
+  enabled_agents:
+    - perception
+    - executor
+    - reflection
+    - aggregator
+
+  # 跳过Planner（开发时直接执行）
+  skip_planner: true
+
+  # 最大重试次数
+  max_retries: 2
+
+  # 超时设置（秒）
+  timeout: 300
+
+# ============================================================================
+# Agent Configuration
+# ============================================================================
+agents:
+  perception:
+    enabled: true
+    confidence_threshold: 0.8
+
+  planner:
+    enabled: false  # 开发时禁用
+    max_subtasks: 10
+    parallel_execution: false
+
+  executor:
+    enabled: true
+    parallel_execution: false
+    continue_on_error: true
+
+  reflection:
+    enabled: true
+    max_retries: 2
+    auto_retry: true
+
+  aggregator:
+    enabled: true
+
+# ============================================================================
+# Toolkit Configuration
+# ============================================================================
+toolkits:
+  # Anvil EVM Simulator
+  anvil_simulator:
+    enabled: true
+    backend: "local"  # local, docker
+    fork_url: "https://eth.llamarpc.com"
+    fork_block: null  # null = latest
+    anvil_path: "anvil"
+    base_port: 8545
+    timeout: 30
+    pool_size: 1
+
+  # TEE Manager
+  tee_manager:
+    enabled: true
+    backend: "docker-sim"  # docker-sim, nitro, sgx
+    tee_image: "sssea/tee-sim:latest"
+    memory: 512
+    cpus: 2
+    attestation_enabled: true
+
+  # Forensics Analyzer
+  forensics_analyzer:
+    enabled: true
+    max_trace_depth: 50
+    enable_ml_detection: false
+
+# ============================================================================
+# LLM Configuration
+# ============================================================================
+llm:
+  provider: "openrouter"  # openrouter, openai, anthropic
+  model: "openai/gpt-4o-mini"
+  api_key: ""  # 从环境变量读取
+  base_url: "https://openrouter.ai/api/v1"
+  temperature: 0.1
+  max_tokens: 2000
+  timeout: 30
+
+# ============================================================================
+# ROMA Configuration
+# ============================================================================
+roma:
+  enabled: true
+  provider: "openrouter"
+  model: "openai/gpt-4o"
+  api_key: ""  # 从环境变量读取
+
+  # ROMA组件
+  components:
+    atomizer:
+      enabled: true
+      complexity_threshold: "medium"
+    executor:
+      enabled: true
+      prediction_strategy: "chain_of_thought"
+    verifier:
+      enabled: true
+      verification_mode: "conservative"
+
+# ============================================================================
+# Simulation Configuration
+# ============================================================================
+simulation:
+  # Gas设置
+  gas_limit: 30000000
+  gas_price: "auto"
+
+  # 状态覆盖策略
+  state_override:
+    enabled: false
+    strategies:
+      - increase_balance
+      - modify_timestamp
+
+  # 快照模式
+  snapshot_mode: "revert"
+
+# ============================================================================
+# Logging & Observability
+# ============================================================================
+logging:
+  level: "DEBUG"
+  format: "json"
+  include_timestamps: true
+
+  # MLflow集成
+  mlflow:
+    enabled: false  # 开发时禁用
+    tracking_uri: "http://localhost:5000"
+    experiment_name: "SSSEA_dev"
+    auto_log: true
+
+# ============================================================================
+# Security
+# ============================================================================
+security:
+  # 允许的调用者
+  allowed_callers:
+    - "*"
+
+  # 最大交易大小
+  max_tx_size_bytes: 131072
+
+  # 敏感操作保护
+  sensitive_operations:
+    - unlimited_approval
+    - ownership_transfer
+    - large_withdrawal
+
+# ============================================================================
+# Development Options
+# ============================================================================
+development:
+  # Mock模式
+  mock_mode: true
+
+  # 跳过外部依赖
+  skip_anvil: false
+  skip_tee: false
+
+  # 详细输出
+  verbose: true

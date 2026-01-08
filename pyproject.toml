@@ -30,6 +30,14 @@ dependencies = [
     "openai>=1.3.0",
     "aiohttp>=3.9.0",
     "psutil>=5.9.0",
+    # ROMA Framework for recursive agential reasoning
+    "roma-dspy>=0.1.0",
+    "dspy-ai>=2.5.0",
+    # Additional MLflow integration for experiment tracking
+    "mlflow>=2.14.0",
+    # YAML config support
+    "omegaconf>=2.3.0",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
