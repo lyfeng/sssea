@@ -139,9 +139,3 @@ SSSEA 完美践行了 **Security-as-a-Service**。通过 OML 协议：
 3. **ROMA Integration**: 编写针对 Web3 漏洞库的 `Reasoning Prompt` 模板，提升 Agent 对复杂 DeFi 攻击的语义识别率。
 
 ---
-
-### 💡 架构师寄语：
-
-这份白皮书将你的项目从“工具”升华为“生态基础设施”。Sentient 团队在审核时，会重点关注你如何通过 **OpenAI API 兼容性** 让其他 Agent 调用你，以及你如何利用 **TEE 证明** 来保证 Agent 的不作恶。
-
-**你是否准备好基于这个架构，让我为你起草具体的“Sentient Builder Program”申请书内容？**

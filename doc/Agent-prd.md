@@ -186,12 +186,3 @@ SSSEA 不直接面对所有终端用户，而是作为 Sentient GRID 网络中�
 
 * **拦截模式 (Intercept):** 若风险评级为 CRITICAL，SSSEA 必须返回明确的 `STOP` 指令。
 * **降级建议 (Degrade):** 若风险源于滑点过高，SSSEA 必须返回 `ADVISE` 指令及推荐参数。
-
----
-
-### 🎨 为什么要在 PRD 里写得这么细？
-
-1. **为了让 Claude Code 编写“防御性代码”：**
-如果 PRD 明确了 `Intent` 和 `Data` 必须对齐，Claude Code 在写 Python 逻辑时，就会自动加入 LLM 的对比步骤，而不仅仅是运行 Anvil 模拟。
-2. **为了体现“安全即服务 (SaaS)”：**
-Sentient 的评审会看你的 API 是否好用。这种结构化的输入输出，证明了你的 Agent 可以被轻易集成到任何 DeFi 机器人、自动理财工具或 DAO 管理工具中。
