@@ -56,7 +56,6 @@ cp .env.example .env
 # 主要配置项：
 # - ROMA_API_KEY: LLM API Key (推荐使用 OpenRouter)
 # - MAINNET_RPC_URL: 以太坊主网 RPC
-# - REASONING_ENGINE: roma (推荐) / openai / mock
 ```
 
 ### 4. 启动服务
@@ -103,10 +102,6 @@ sssea/
 │   ├── simulation/           # 模拟引擎层
 │   │   ├── models.py         # 数据模型
 │   │   └── anvil_screener.py # Anvil 模拟引擎
-│   ├── reasoning/            # 推理层 (LLM Brain)
-│   │   ├── prompts.py        # SSSEA Prompt 模板
-│   │   ├── intent_analyzer.py  # 意图分析器
-│   │   └── roma_analyzer.py  # ROMA 分析器
 │   ├── attestation/          # OML 证明层
 │   │   └── mock_quote.py     # Mock 证明生成器
 │   └── api/                  # API 层
